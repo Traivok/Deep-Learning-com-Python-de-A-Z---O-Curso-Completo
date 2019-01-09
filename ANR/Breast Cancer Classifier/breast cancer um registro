@@ -1,0 +1,68 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Jan  9 12:07:42 2019
+
+@author: ricardo
+"""
+
+import pandas as pd
+import numpy as np
+import keras
+from keras.models import Sequential, model_from_json
+from keras.layers import Dense, Dropout
+from keras.wrappers.scikit_learn import KerasClassifier
+from sklearn.model_selection import cross_val_score
+from sklearn.model_selection import GridSearchCV
+
+neurons = 8
+activation = 'relu'
+kernel_initializer = 'normal'
+optimizer = 'adam'
+loss = 'binary_crossentropy'
+
+previsores = pd.read_csv('entradas-breast.csv')
+classe = pd.read_csv('saidas-breast.csv')
+
+classifier = Sequential()
+
+# First Hidden Layer
+classifier.add(Dense(units = neurons, activation = activation,
+              kernel_initializer = kernel_initializer, input_dim = 30))
+classifier.add(Dropout(0.2))
+
+# Second Hidden Layer
+classifier.add(Dense(units = neurons, activation = activation,
+              kernel_initializer = kernel_initializer))
+classifier.add(Dropout(0.2))
+
+# Output
+classifier.add(Dense(units = 1, activation = 'sigmoid'))
+    
+classifier.compile(optimizer = optimizer, loss = loss,
+                  metrics = ['binary_accuracy'])
+
+classifier.fit(previsores, classe, batch_size = 10, epochs = 500)
+
+# Test with `random` parameters
+def randomEntry(dataframe):
+    return np.array([
+            [dataframe.values.tolist()
+                    [ np.random.randint(0, len(dataframe.index)) ]
+                    [i] for i in range(30)
+            ]])
+    
+entry = randomEntry(previsores)
+result = (classifier.predict(entry) > 0.5)
+
+# Saving the Neural Network
+classifier_json = classifier.to_json()
+with open('classifier.json', 'w') as json_file:
+    json_file.write(classifier_json)
+classifier.save_weights('classifier_breast.h5')
+
+# Load the Neural Network from disk
+other_classifier = model_from_json(open('classifier.json', 'r').read())
+other_classifier.load_weights('classifier_breast.h5')
+
+other_result = (other_classifier.predict(entry) > 0.5)
